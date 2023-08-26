@@ -1,0 +1,832 @@
+---
+title: "Telecom Customer Retention Project in R"
+output: html_notebook
+---
+# Purpose : Analyze customer data for MTN Telecom in order to craft effective customer retention programs
+
+# 1.Defining the Question
+
+## a) Specifying the Data Analysis Question
+
+The management would like to get your assistance in understanding the current subscribed customers. Your recommendations informed by your analysis will help them make informed decisions on effective customer retention programs.
+
+
+## b) Defining the Metric for Success
+
+The solution will have satisfied the research question when you can identify the factors that contribute to customer churn.
+
+## c) Understanding the context
+
+MTN Telecom offers mobile and internet services to its customers. These services include phone, multiple lines, internet, online security, online backup, device protection, tech support, and streaming TV and movies.
+
+You have been provided with the current customer data. Since you will be working towards a descriptive report than a predictive one, you decide to think critically of the kind of questions that would help you craft customer retention programs. You then later use the given data set to answer your questions but before you start, you reading, explore, clean and visualise your dataset.
+
+## d) Recording the Experimental Design
+
+The steps taken included :
+
+1.Data Loading & exploration 
+2.Data cleaning.
+4.Data analysis.
+5.Data Visulaization -to effectively communicate your findings
+5.Interpretation of results.
+6.Recommendations based on results of the analysis.
+
+
+## e) Data Relevance
+
+For now, the data we have contains churn data which will be critical for our research specific analysis.
+
+# 2. Data Cleaning & Preparation
+
+```{r}
+# loading libraries
+library(tidyverse)
+
+```
+
+```{r}
+# loading the CSV dataset from URL and loading the entire dataframe
+
+customer_df <- read_csv("https://bit.ly/2ZlpzjF")
+head(customer_df)
+
+```
+
+
+```{r}
+# getting our dataset shape
+#glimpse(customer_df)
+#head(customer_df)
+#tail(customer_df)
+dim(customer_df)
+
+```
+This data set has 7050 records and 21 variables.
+
+```{r}
+# Checking the column names
+names(customer_df)
+```
+
+  
+```{r}
+# Checking  duplicates if any are present
+
+customer_df[duplicated(customer_df), ]
+
+```
+
+The data has 7 dublicated observations 
+
+```{r}
+# Remove duplicates and checking the shape of the resulting data
+
+customer_df <- customer_df[!duplicated(customer_df), ]
+dim(customer_df)
+```
+The no dublicate data now has unique  7043 observations and 21 varables after removing the dublicates 
+
+```{r}
+# Checking for duplicates if any are present after rmoving dublicates 
+
+customer_df[duplicated(customer_df), ]
+
+```
+No dublicates found after removing the 7 observations
+
+
+```{r}
+#finding total missing values per column 
+colSums(is.na(customer_df))
+```
+NB: Only customerID has no missing values , the rest have missing values from 1-23
+
+```{r}
+# dropping missing values
+
+na.omit(customer_df)
+
+
+```
+40 missing records / values were dropped, which isn't a big loss.from 7043 to 7003 records 
+
+
+```{r}
+#No of missing values per column 
+
+colSums(is.na(customer_df))
+
+```
+```{r}
+names(customer_df)
+```
+Checking columns names 
+Observation:
+Names have mixed capital & lower case naming .
+
+```{r}
+# Change all column names to lower case
+
+names(customer_df) <- tolower(names(customer_df))
+names(customer_df)
+```
+
+
+```{r}
+# previewing the number of unique values in each column
+
+unique(customer_df)
+
+```
+ 
+
+```{r}
+# checking the datatypes
+str(customer_df)
+
+```
+```{r}
+# checking unique values of each variable
+
+customer_df2 <- customer_df %>% as.data.frame()
+
+for (i in colnames(customer_df2)[-c(1, 6, 19, 20)]){
+  
+  cat("Unique values in", i, ":", unique(customer_df2[,i]), "\n")
+}
+```
+There are columns with non unique values like payment method , senior citizen etc 
+
+```{r}
+# Replacing values in paymentmethod column
+
+customer_df$paymentmethod[customer_df$paymentmethod == "Mailed checkkk"] <- "Mailed check"
+customer_df$paymentmethod[customer_df$paymentmethod == "Electronic checkk"] <- "Electronic check"
+```
+
+```{r}
+# resolving the issues in the 'payment_method' variable
+unique(customer_df$paymentmethod)
+```
+```{r}
+# Replacing values in seniorcitizen column
+
+customer_df$seniorcitizen[customer_df$seniorcitizen == 0] <- 'No'
+customer_df$seniorcitizen[customer_df$seniorcitizen == 1] <- 'Yes'
+```
+
+```{r}
+# Recheck unique values
+unique(customer_df$seniorcitizen)
+```
+```{r}
+# Getting outliers based on totalcharges column
+lower_bound <- quantile(customer_df$totalcharges, 0.025, na.rm=TRUE)
+upper_bound <- quantile(customer_df$totalcharges, 0.975,na.rm=TRUE)
+
+```
+
+```{r}
+#lower boound
+lower_bound
+```
+
+```{r}
+#upper boound
+upper_bound
+```
+
+```{r}
+# Getting the records without outlier values
+non_outlier_values <- which(customer_df$totalcharges > lower_bound & customer_df$totalcharges < upper_bound)
+
+```
+
+```{r}
+#non_outlier_values
+customer_df = customer_df[non_outlier_values,]
+dim(customer_df)
+
+```
+```{r}
+# Remove duplicates
+
+customer_df <- customer_df[!duplicated(customer_df), ]
+dim(customer_df)
+```
+
+
+```{r}
+# Remove all missing values
+
+customer_df <- na.omit(customer_df)
+dim(customer_df)
+```
+```{r}
+#preview
+head(customer_df)
+customer_df
+```
+
+```{r}
+#column names
+
+names(customer_df)
+
+```
+
+```{r}
+#load ggplot2 library 
+library(ggplot2)
+```
+
+```{r}
+#plot density distribution of churn wrt senior citizen 
+ggplot(customer_df, aes(x = churn, fill = "churn")) +
+  geom_density(alpha = 0.5) +
+  geom_density(aes(x = seniorcitizen, fill = "seniorcitizen"), alpha = 0.5) +
+  labs(title = "Density Plot of churn and seniorcitizen",
+       x = "Value",
+       y = "Density") +
+  scale_fill_manual(values = c("churn" = "blue", "seniorcitizen" = "red"))
+
+
+```
+
+
+```{r}
+# we investigate the distribution of churn by senior citizen
+# and recording our observations.
+# bar plot distribution of churn wrt senior citizen
+ggplot(customer_df, aes(x = churn, fill = factor(seniorcitizen))) +
+  geom_bar(position = "dodge") +
+  labs(title = "Churn Distribution by Senior Citizen",
+       x = "Churn",
+       y = "Count",
+       fill = "Senior Citizen") +
+  scale_fill_discrete(name = "Senior Citizen", labels = c("Non-Senior", "Senior")) +
+  theme_minimal()
+```
+
+
+
+```{r}
+# plotting a pie chart to investigate whether MTN customers churned
+# Calculating churn counts
+df <- table(customer_df$churn)
+print(df)
+
+```
+```{r}
+   pie(df )
+  
+```
+```{r}
+#What percentage of customers from the provided data set churned?
+  churn_agg_tbl <- customer_df %>% group_by(churn) %>% 
+ 
+   summarise( percent = 100 * n() / nrow(customer_df) )
+   churn_agg_tbl
+  
+```
+ 
+ Yes , 
+ 
+ 26% of the customers churned out from the customer data analysis .
+ 
+ 
+  
+```{r}
+# let's now make a comparison betweeen male and female 
+# subscribers by plotting the distribution of churn by gender
+
+ggplot(customer_df, aes(x = gender, fill = churn)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Churn Distribution by Gender",
+       x = "Gender",
+       y = "Count",
+       fill = "Churn") +
+  theme_minimal()
+```
+
+From the Analysis , there is near equal churn rate in Male and female showing churn rate is less /Not affected by gender.
+
+
+```{r}
+# Investigate the distribution of churn by dependents 
+# and then record your observations.
+
+# Filter out churned customers and compare numbers of customers with dependents vs those without
+
+dependents_agg_tbl <- filter(customer_df, churn == 'Yes') %>% group_by(dependents) %>% 
+   summarise(count=n(),
+            .groups = 'drop')
+dependents_agg_tbl
+
+```
+There is more churn out by customers without dependants than with dependants 
+
+
+```{r}
+#Investigate the distribution of churn by phone service:
+# Filter out churned customers and compare numbers of customers with phone service vs those without
+
+phone_agg_tbl <- filter(customer_df, churn == 'Yes') %>% group_by(phoneservice) %>% 
+   summarise(count=n(),
+            .groups = 'drop')
+
+phone_agg_tbl
+
+```
+```{r}
+#plotting Churn Distribution by phoneservice
+
+plot <- ggplot(customer_df, aes(x = phoneservice, fill = churn)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Churn Distribution by phoneservice",
+       x = "phoneservice",
+       y = "Count",
+       fill = "Churn") +
+  theme_minimal()
+
+# Display the plot
+print(plot)
+```
+
+The rate of churn is higher among customers with phone service.
+
+```{r}
+# plotting the distribution of churn by multiple lines
+# and record our observations.
+
+plot <- ggplot(customer_df, aes(x = multiplelines, fill = churn)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Churn Distribution by multiplelines",
+       x = "multiplelines",
+       y = "Count",
+       fill = "Churn") +
+  theme_minimal()
+
+# Display the plot
+print(plot)
+
+```
+There is less churn by customers with NO phone service and similar churn out by people with multiple lines .
+
+People with multiple lines are less likely to churn out
+
+
+
+
+```{r}
+# plotting the distribution of churn by internet service 
+# and later record our observations.
+
+plot <- ggplot(customer_df, aes(x = internetservice, fill = churn)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Churn Distribution by internetservice",
+       x = "internetservice",
+       y = "Count",
+       fill = "Churn") +
+  theme_minimal()
+
+ # Display the plot
+ print(plot)
+
+```
+Greatest churn out seen in customers with fiber optic conection 
+Minimal churn out is seen in people without internet service  
+
+
+
+```{r}
+# Investigate the distribution of churn by online security and then record
+# our observations below:
+
+plot <- ggplot(customer_df, aes(x = onlinesecurity, fill = churn)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Churn Distribution by onlinesecurity",
+       x = "onlinesecurity",
+       y = "Count",
+       fill = "Churn") +
+  theme_minimal()
+
+ # Display the plot
+ print(plot)
+
+
+```
+there is more churn by customers who lack online security compared to those with online security .
+
+People without internet service less likely to chrun out
+
+
+```{r}
+# plotting the distribution of churn by online backup
+
+ggplot(customer_df, aes(x = onlinebackup, fill = churn)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Churn Distribution by onlinebackup",
+       x = "onlinebackup",
+       y = "Count",
+       fill = "Churn") +
+  theme_minimal()
+```
+
+
+```{r}
+# plotting the distribution of churn by tech support
+ggplot(customer_df, aes(x = techsupport, fill = churn)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Churn Distribution by techsupport",
+       x = "techsupport",
+       y = "Count",
+       fill = "Churn") +
+  theme_minimal()
+
+```
+
+
+```{r}
+# Investigate the distribution of churn by device protection
+plot <- ggplot(customer_df, aes(x = deviceprotection, fill = churn)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Churn Distribution by deviceprotection",
+       x = "deviceprotection",
+       y = "Count",
+       fill = "Churn") +
+  theme_minimal()
+
+# Display the plot
+print(plot)
+
+```
+Looking at device protection , more peple without device protection are likely to churn out.
+
+
+```{r}
+# plotting the distribution of churn by streaming tv
+# Filter out churned customers and compare numbers of customers with streaming tv vs those without
+
+tv_agg_tbl <- filter(customer_df, churn == 'Yes') %>% group_by(streamingtv) %>% 
+   summarise(count=n(),
+            .groups = 'drop')
+
+tv_agg_tbl
+```
+The rate of churn is comparable for customers with streaming tv and those without.
+
+```{r}
+# plotting the distribution of churn by streaming movies
+
+plot <- ggplot(customer_df, aes(x = streamingmovies, fill = churn)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Churn Distribution by Streaming Movies",
+       x = "Stream Movies",
+       y = "Count",
+       fill = "Churn") +
+  theme_minimal()
+
+# Display the plot
+print(plot)
+
+```
+Churn is less/unlikely affected by availability of internet services and so retention offers should not be based on internet service 
+
+Streaming movies somehow affects the churn out rate as about 40-50% of the customers churned out . something need be checked on data speeds which could potentially affected movie streaming 
+
+
+```{r}
+# Investigate the distribution of churn by contract
+
+plot <- ggplot(customer_df, aes(x = contract, fill = churn)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Churn Distribution by contract",
+       x = "contract",
+       y = "Count",
+       fill = "Churn") +
+  theme_minimal()
+
+# Display the plot
+print(plot)
+
+```
+Short term contract customers (month-month) are likely to churn out . long term contract (2 yrs) are less likely to churn out .
+
+Make more peple have longer contract to reduce churn 
+
+
+```{r}
+#Investigate the distribution of churn by partner:
+# Filter out churned customers and compare numbers of partner vs non partner
+
+partner_agg_tbl <- filter(customer_df, churn == 'Yes') %>% group_by(partner) %>% 
+   summarise(count=n(),
+            .groups = 'drop')
+partner_agg_tbl
+```
+
+More churn noted in Non partners than with partner subs  
+
+
+```{r}
+# Investigate  the distribution of churn by paperless billing
+#plotting the distribution of churn by paperless billing
+
+plot <- ggplot(customer_df, aes(x = paperlessbilling, fill = churn)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Churn Distribution by paperlessbilling",
+       x = "paperlessbilling",
+       y = "Count",
+       fill = "Churn") +
+  theme_minimal()
+
+# Display the plot
+print(plot)
+
+
+```
+More churn is seen in customers with paperless billing .
+
+
+```{r}
+# plotting the distribution of churn by payment method
+
+plot <- ggplot(customer_df, aes(x = paymentmethod, fill = churn)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Churn Distribution by paymentmethod",
+       x = "paymentmethod",
+       y = "Count",
+       fill = "Churn") +
+  theme_minimal()
+
+# Display the plot
+print(plot)
+
+
+```
+
+Customers with electronic check  payment method are more likely to churn out.
+
+
+#b) General Analysis.
+
+## Comparing customers by gender:
+
+```{r}
+# compare customers in the data set by gender
+
+gender_tbl <- customer_df %>% 
+  group_by(gender) %>% 
+  summarise(count=n(),
+            .groups = 'drop')
+ 
+gender_tbl
+```
+the number of male and female are nearly equal
+
+## Comparing senior vs non senior customers:
+
+```{r}
+
+# compare senior vs non-senior customers
+
+senior_tbl <- customer_df %>% group_by(seniorcitizen) %>% 
+  summarise(count=n(),
+            .groups = 'drop')
+ 
+senior_tbl
+```
+
+Very few of the customers are senior citizens
+
+## Compare customers with dependents and those without
+
+```{r}
+dependents_tbl <- customer_df %>% group_by(dependents) %>% 
+  summarise(count=n(),
+            .groups = 'drop')
+ 
+dependents_tbl
+```
+most of the customers have no dependants 
+
+## Comparing customers by tenure
+
+```{r}
+tenure_tbl <- customer_df %>% group_by(tenure) %>% 
+  summarise(count=n(),
+            .groups = 'drop')
+ 
+tenure_tbl
+```
+Most customers have a tenure of below 10
+
+
+## Comparing customers by phone service
+
+```{r}
+phone_tbl <- customer_df %>% group_by(phoneservice) %>% 
+  summarise(count=n(),
+            .groups = 'drop')
+ 
+phone_tbl
+```
+Most of the customers have phone service 
+
+## Comparing customers by whether the have multiple lines:
+
+```{r}
+multiplelines_tbl <- customer_df %>% group_by(multiplelines) %>% 
+  summarise(count=n(),
+            .groups = 'drop')
+ 
+multiplelines_tbl
+```
+
+Customer with and and without multiple lines are nearly the same 
+
+## Comparing customers by internet service:
+
+```{r}
+# distribution by internet service
+
+internet_tbl <- customer_df %>% group_by(internetservice) %>% 
+  summarise(count=n(),
+            .groups = 'drop')
+ 
+internet_tbl
+```
+Most  of the  customers have internet service
+
+##omparing customers by online security
+
+```{r}
+# distribution by online security
+
+security_tbl <- customer_df %>% group_by(onlinesecurity) %>% 
+  summarise(count=n(),
+            .groups = 'drop')
+ 
+security_tbl
+```
+
+most customers lack online security
+
+## Comparing customers by online backup
+
+```{r}
+# distribution by online backup
+
+backup_tbl <- customer_df %>% group_by(onlinebackup) %>% 
+  summarise(count=n(),
+            .groups = 'drop')
+ 
+backup_tbl
+```
+Most subs/nearly half do not have onlinebackup 
+
+## Comparing customers by device protection
+
+```{r}
+device_tbl <- customer_df %>% group_by(deviceprotection) %>% 
+  summarise(count=n(),
+            .groups = 'drop')
+ 
+device_tbl
+```
+less customers have device protection than those with
+
+## Comparing customers by tech support
+
+```{r}
+# distribution by tech support
+
+support_tbl <- customer_df %>% group_by(techsupport) %>% 
+  summarise(count=n(),
+            .groups = 'drop')
+ 
+support_tbl
+```
+more customers lack tech support
+
+## Comparing customers by streaming tv
+
+```{r}
+# distribution by streaming tv
+
+tv_tbl <- customer_df %>% group_by(streamingtv) %>% 
+  summarise(count=n(),
+            .groups = 'drop')
+ 
+tv_tbl
+```
+
+Customers with tv streaming service and those without are comparable.
+
+
+## Comparing customers by streaming movies
+
+```{r}
+# distribution by streaming tv
+
+movies_tbl <- customer_df %>% group_by(streamingmovies) %>% 
+  summarise(count=n(),
+            .groups = 'drop')
+ 
+movies_tbl
+```
+Nearly equal no of customers have movie streaming 
+
+## Comparing customers by contract
+
+```{r}
+# ditstribution by contract
+
+contract_tbl <- customer_df %>% group_by(contract) %>% 
+  summarise(count=n(),
+            .groups = 'drop')
+ 
+contract_tbl
+```
+most of the customers are on short term contract or no contract relying on month on month service subscription 
+
+## Comparing customers by paperless billing
+
+```{r}
+# distribution by paperless billing
+
+paperless_tbl <- customer_df %>% group_by(paperlessbilling) %>% 
+  summarise(count=n(),
+            .groups = 'drop')
+ 
+paperless_tbl
+```
+MOST of the customers are using paperless billing 
+
+
+## Comparing customers by payment method
+
+```{r}
+payment_tbl <- customer_df %>% group_by(paymentmethod) %>% 
+  summarise(count=n(),
+            .groups = 'drop')
+ 
+payment_tbl
+```
+
+Electronic check is the most used payment method among the customers 
+
+#4.Summary of findings:
+
+Based on the results of the analysis, the following conclusions were arrived at:
+
+-There is no significant difference in churn rate between male and female subscribers. So this is not an area management needs to worry about.
+-Majority of the customers are not senior citizens so this makes this dataset biased and hard to identify whether being a senior citizen affects churn rate.
+-Not having a partner increases the likelihood of churning.
+-Not having dependents increases the likelihood of churning.
+-More customers with electronic check payment method are more likely to churn out - the mgt can attend more to this among other efforts 
+
+-More churn is seen in customers with paperless billing
+
+-More churn noted in Non partners than with partner subs
+
+-Short term contract customers (month-month) are likely to churn out
+
+-Churn is less/unlikely affected by availability of internet services
+
+
+#5.Recommendations
+
+In order to create an effective customer retention program, management should take the following measures:
+
+-Focus more on meeting the needs of non-senior citizens.
+-Focus more on having customers that have partners and/or dependents since these people are less likely to churn. Alternatively, management can come up with services specifically designed for customers without partners and/or dependents. This would require additional research.
+-The mgt to put more efforts on why more customers who pay by electrocnic check methon churn out more 
+-The mgt to come up with programs for customers to tke longer contracts to reduce the churn seen in short term contracts (mnth on month)
+
+
+#6.Challenging your Solution
+
+## a) Did we have the right data? Do we need other data to answer our question?
+
+As far as I can tell, we had the right data. However, more data is still needed, particularly those with more customers who churned so we can have a better understanding of why they might have churned.
+
+## b) Did we have the right question?
+
+Yes, we did but we can add others 
+
+
+
+
+
+
+
+
+
+
+```{r}
+
+```
+
